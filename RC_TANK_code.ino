@@ -20,7 +20,7 @@ void loop() {
     char Direction = Serial.read(); // Read a single character
 
     switch (Direction) {
-      case 'F': // Move Forward
+      case 'F': // Move Forward (do as per your applications commands(all directions))
         digitalWrite(LMP, HIGH);
         digitalWrite(LMN, LOW);
         digitalWrite(RMP, HIGH);

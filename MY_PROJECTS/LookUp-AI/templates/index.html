@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LookUp AI — Visual Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08090c;
+    --surface: #0f1117;
+    --surface2: #161820;
+    --border: #1e2130;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --accent3: #f59e0b;
+    --text: #e8eaf0;
+    --text-dim: #6b7280;
+    --text-dimmer: #374151;
+    --danger: #ef4444;
+    --success: #10b981;
+    --glow: 0 0 20px rgba(0,229,255,0.15);
+    --glow-strong: 0 0 40px rgba(0,229,255,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* SCANLINE OVERLAY */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,9,12,0.8);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--glow);
+    animation: pulse-border 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: var(--glow); }
+    50% { box-shadow: var(--glow-strong); }
+  }
+
+  .logo-icon svg { width: 22px; height: 22px; stroke: var(--accent); fill: none; }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  .status-dot.error { background: var(--danger); animation: none; }
+  .status-dot.warning { background: var(--accent3); }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* MAIN LAYOUT */
+  main {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    height: calc(100vh - 81px);
+  }
+
+  /* CAMERA PANEL */
+  .camera-panel {
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    padding: 30px;
+    gap: 20px;
+    overflow: hidden;
+  }
+
+  .panel-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .camera-viewport {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    flex-shrink: 0;
+  }
+
+  #videoElement {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  #snapshotCanvas { display: none; }
+
+  .camera-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* Corner brackets */
+  .corner { position: absolute; width: 20px; height: 20px; }
+  .corner::before, .corner::after {
+    content: '';
+    position: absolute;
+    background: var(--accent);
+  }
+  .corner::before { width: 100%; height: 2px; }
+  .corner::after { width: 2px; height: 100%; }
+  .corner.tl { top: 12px; left: 12px; }
+  .corner.tr { top: 12px; right: 12px; transform: scaleX(-1); }
+  .corner.bl { bottom: 12px; left: 12px; transform: scaleY(-1); }
+  .corner.br { bottom: 12px; right: 12px; transform: scale(-1); }
+
+  .scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scan 3s linear infinite;
+    opacity: 0.6;
+  }
+
+  @keyframes scan {
+    0% { top: 0%; }
+    100% { top: 100%; }
+  }
+
+  .camera-hud {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    opacity: 0.8;
+  }
+
+  .camera-controls {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    padding: 12px 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: var(--glow);
+  }
+
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+
+  .btn.primary:hover {
+    background: transparent;
+    color: var(--accent);
+    box-shadow: var(--glow-strong);
+  }
+
+  .btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
+
+  /* FROZEN FRAME PREVIEW */
+  #frozenPreview {
+    display: none;
+    width: 100%;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    box-shadow: var(--glow);
+    max-height: 200px;
+    object-fit: cover;
+  }
+
+  /* RIGHT PANEL - TOP */
+  .info-panel {
+    border-bottom: 1px solid var(--border);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .result-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    min-height: 160px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .result-box.active {
+    border-color: var(--accent);
+    box-shadow: var(--glow);
+  }
+
+  .result-box.analyzing::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+    animation: progress-bar 1.5s linear infinite;
+  }
+
+  @keyframes progress-bar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .result-text {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+
+  .result-text.has-content { color: var(--text); }
+
+  .result-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+    color: var(--text-dimmer);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-align: center;
+    min-height: 130px;
+  }
+
+  .result-placeholder svg {
+    width: 28px;
+    height: 28px;
+    stroke: var(--text-dimmer);
+    fill: none;
+  }
+
+  .timestamp-badge {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    opacity: 0.7;
+  }
+
+  .tts-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px;
+    cursor: pointer;
+    color: var(--text-dim);
+    transition: all 0.2s;
+  }
+
+  .tts-btn:hover { border-color: var(--accent3); color: var(--accent3); }
+  .tts-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; display: block; }
+
+  /* RIGHT PANEL - BOTTOM (HISTORY) */
+  .history-panel {
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+  }
+
+  .history-list {
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-track { background: transparent; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .history-item:hover {
+    border-color: var(--accent2);
+    box-shadow: 0 0 12px rgba(124,58,237,0.1);
+  }
+
+  .history-item-header {
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .history-item-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .empty-history {
+    text-align: center;
+    color: var(--text-dimmer);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 20px;
+  }
+
+  /* ANALYZING STATE */
+  .analyzing-state {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 20px;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .toast.success { border-color: var(--success); color: var(--success); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .toast.info { border-color: var(--accent); color: var(--accent); }
+
+  /* STATS ROW */
+  .stats-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .stat-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-pill span { color: var(--accent); font-weight: 700; }
+
+  /* UPLOAD ALT MODE */
+  .upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 11px;
+    color: var(--text-dimmer);
+    letter-spacing: 0.1em;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  #fileInput { display: none; }
+
+  /* MODES TABS */
+  .mode-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+
+  .mode-tab {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    color: var(--text-dimmer);
+    transition: all 0.2s;
+  }
+
+  .mode-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    main {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto;
+      height: auto;
+      overflow-y: auto;
+    }
+    .camera-panel { border-right: none; border-bottom: 1px solid var(--border); }
+    header { padding: 16px 20px; }
+    .camera-panel, .info-panel, .history-panel { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" stroke-width="1.5">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+        <circle cx="12" cy="12" r="7" stroke-dasharray="3 2" opacity="0.4"/>
+      </svg>
+    </div>
+    <div class="logo-text">Lookup<span>AI</span></div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">INITIALIZING...</span>
+    <span style="color:var(--text-dimmer)">|</span>
+    <span id="captureCount">0 CAPTURES</span>
+  </div>
+</header>
+
+<main>
+  <!-- CAMERA PANEL -->
+  <section class="camera-panel">
+    <div class="panel-label">Visual Input</div>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tabCamera" onclick="switchMode('camera')">Camera</button>
+      <button class="mode-tab" id="tabUpload" onclick="switchMode('upload')">Upload Image</button>
+    </div>
+
+    <!-- Camera Mode -->
+    <div id="cameraModeUI">
+      <div class="camera-viewport">
+        <video id="videoElement" autoplay muted playsinline></video>
+        <canvas id="snapshotCanvas"></canvas>
+        <div class="camera-overlay">
+          <div class="corner tl"></div>
+          <div class="corner tr"></div>
+          <div class="corner bl"></div>
+          <div class="corner br"></div>
+          <div class="scan-line"></div>
+          <div class="camera-hud" id="cameraHud">LIVE FEED</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Mode -->
+    <div id="uploadModeUI" style="display:none;">
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="margin-bottom:8px; display:block; margin-left:auto; margin-right:auto;">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Click to upload an image (JPG, PNG, WEBP)
+      </div>
+      <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(event)">
+    </div>
+
+    <!-- Preview -->
+    <img id="frozenPreview" alt="Captured frame">
+
+    <div class="camera-controls" id="cameraControls">
+      <button class="btn primary" id="captureBtn" onclick="captureFrame()">
+        <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M20.94 11A8.994 8.994 0 1 0 21 12.7"/></svg>
+        Capture
+      </button>
+      <button class="btn" id="analyzeBtn" onclick="analyzeCapture()" disabled>
+        <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+        Analyze
+      </button>
+      <button class="btn" id="saveBtn" onclick="saveCapture()" disabled>
+        <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save
+      </button>
+      <button class="btn" id="retakeBtn" onclick="retake()" disabled style="margin-left:auto;">
+        <svg viewBox="0 0 24 24" stroke-width="1.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        Retake
+      </button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-pill">AI <span id="aiScans">0</span> scans</div>
+      <div class="stat-pill">Saved <span id="rawSaves">0</span> images</div>
+    </div>
+  </section>
+
+  <!-- INFO PANEL -->
+  <section class="info-panel">
+    <div class="panel-label">AI Analysis</div>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-placeholder" id="resultPlaceholder">
+        <svg viewBox="0 0 24 24" stroke-width="1">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        AWAITING CAPTURE
+      </div>
+      <div id="resultContent" style="display:none;">
+        <button class="tts-btn" onclick="speakResult()" title="Text to Speech">
+          <svg viewBox="0 0 24 24" stroke-width="1.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>
+        </button>
+        <div class="timestamp-badge" id="resultTimestamp"></div>
+        <div class="result-text has-content" id="resultText"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORY PANEL -->
+  <section class="history-panel">
+    <div class="panel-label" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Scan History</span>
+      <button class="btn" style="padding:4px 10px;font-size:10px;" onclick="loadHistory()">Refresh</button>
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="empty-history">NO HISTORY YET</div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let stream = null;
+let capturedImageData = null;
+let currentMode = 'camera';
+let aiScanCount = 0;
+let rawSaveCount = 0;
+
+// --- INIT ---
+async function init() {
+  await checkStatus();
+  await loadHistory();
+  if (currentMode === 'camera') await startCamera();
+}
+
+async function checkStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    const count = document.getElementById('captureCount');
+
+    if (data.gemini_configured) {
+      dot.className = 'status-dot';
+      text.textContent = 'GEMINI READY';
+    } else {
+      dot.className = 'status-dot warning';
+      text.textContent = 'NO API KEY';
+    }
+    count.textContent = `${data.captures_count} CAPTURES`;
+  } catch (e) {
+    document.getElementById('statusDot').className = 'status-dot error';
+    document.getElementById('statusText').textContent = 'SERVER ERROR';
+  }
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: false
+    });
+    const video = document.getElementById('videoElement');
+    video.srcObject = stream;
+    document.getElementById('cameraHud').textContent = 'LIVE FEED';
+    showToast('Camera started', 'success');
+  } catch (e) {
+    document.getElementById('cameraHud').textContent = 'CAMERA UNAVAILABLE';
+    showToast('Camera access denied. Use Upload mode.', 'error');
+    switchMode('upload');
+  }
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('tabCamera').classList.toggle('active', mode === 'camera');
+  document.getElementById('tabUpload').classList.toggle('active', mode === 'upload');
+  document.getElementById('cameraModeUI').style.display = mode === 'camera' ? 'block' : 'none';
+  document.getElementById('uploadModeUI').style.display = mode === 'upload' ? 'block' : 'none';
+  document.getElementById('frozenPreview').style.display = 'none';
+  capturedImageData = null;
+  resetButtons();
+
+  if (mode === 'camera' && !stream) startCamera();
+  if (mode === 'upload' && stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+// --- CAPTURE ---
+function captureFrame() {
+  if (currentMode === 'camera') {
+    const video = document.getElementById('videoElement');
+    const canvas = document.getElementById('snapshotCanvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    capturedImageData = canvas.toDataURL('image/jpeg', 0.9);
+  }
+
+  if (!capturedImageData) { showToast('No image captured', 'error'); return; }
+
+  // Show preview
+  const preview = document.getElementById('frozenPreview');
+  preview.src = capturedImageData;
+  preview.style.display = 'block';
+
+  // Hide live video
+  if (currentMode === 'camera') document.getElementById('cameraModeUI').style.display = 'none';
+
+  // Enable buttons
+  document.getElementById('analyzeBtn').disabled = false;
+  document.getElementById('saveBtn').disabled = false;
+  document.getElementById('retakeBtn').disabled = false;
+  document.getElementById('captureBtn').disabled = true;
+
+  showToast('Image captured!', 'success');
+}
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    capturedImageData = e.target.result;
+    const preview = document.getElementById('frozenPreview');
+    preview.src = capturedImageData;
+    preview.style.display = 'block';
+    document.getElementById('uploadModeUI').style.display = 'none';
+
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('saveBtn').disabled = false;
+    document.getElementById('retakeBtn').disabled = false;
+    document.getElementById('captureBtn').disabled = true;
+    showToast(`Loaded: ${file.name}`, 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function retake() {
+  document.getElementById('frozenPreview').style.display = 'none';
+  capturedImageData = null;
+  resetButtons();
+
+  if (currentMode === 'camera') {
+    document.getElementById('cameraModeUI').style.display = 'block';
+  } else {
+    document.getElementById('uploadModeUI').style.display = 'block';
+    document.getElementById('fileInput').value = '';
+  }
+
+  // Reset result
+  document.getElementById('resultPlaceholder').style.display = 'flex';
+  document.getElementById('resultContent').style.display = 'none';
+  document.getElementById('resultBox').className = 'result-box';
+}
+
+function resetButtons() {
+  document.getElementById('captureBtn').disabled = false;
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('saveBtn').disabled = true;
+  document.getElementById('retakeBtn').disabled = true;
+}
+
+// --- AI ANALYZE ---
+async function analyzeCapture() {
+  if (!capturedImageData) return;
+
+  // UI state
+  const box = document.getElementById('resultBox');
+  box.className = 'result-box analyzing active';
+  document.getElementById('resultPlaceholder').style.display = 'none';
+  document.getElementById('resultContent').style.display = 'block';
+  document.getElementById('resultText').innerHTML = `
+    <div class="analyzing-state">
+      <div class="spinner"></div>
+      CONSULTING GEMINI AI...
+    </div>
+  `;
+  document.getElementById('resultTimestamp').textContent = '';
+
+  document.getElementById('analyzeBtn').disabled = true;
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: capturedImageData })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      box.className = 'result-box active';
+      document.getElementById('resultTimestamp').textContent = `▸ ${data.timestamp}`;
+      document.getElementById('resultText').textContent = data.description;
+      document.getElementById('resultText').className = 'result-text has-content';
+      aiScanCount++;
+      document.getElementById('aiScans').textContent = aiScanCount;
+      await loadHistory();
+      await checkStatus();
+      showToast('Analysis complete!', 'success');
+    } else {
+      box.className = 'result-box';
+      document.getElementById('resultText').textContent = data.error || 'Unknown error';
+      showToast('Analysis failed', 'error');
+    }
+  } catch (e) {
+    box.className = 'result-box';
+    document.getElementById('resultText').textContent = 'Network error: ' + e.message;
+    showToast('Request failed', 'error');
+  }
+
+  document.getElementById('analyzeBtn').disabled = false;
+}
+
+async function saveCapture() {
+  if (!capturedImageData) return;
+  try {
+    const res = await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: capturedImageData })
+    });
+    const data = await res.json();
+    if (data.success) {
+      rawSaveCount++;
+      document.getElementById('rawSaves').textContent = rawSaveCount;
+      await checkStatus();
+      showToast('Image saved!', 'success');
+    } else {
+      showToast('Save failed', 'error');
+    }
+  } catch (e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+// --- TTS ---
+function speakResult() {
+  const text = document.getElementById('resultText').textContent;
+  if (!text || text.includes('CONSULTING')) return;
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.95;
+    window.speechSynthesis.speak(utter);
+    showToast('Speaking...', 'info');
+  } else {
+    showToast('TTS not supported in this browser', 'error');
+  }
+}
+
+// --- HISTORY ---
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/history');
+    const data = await res.json();
+    const list = document.getElementById('historyList');
+
+    if (!data.history || data.history.length === 0) {
+      list.innerHTML = '<div class="empty-history">NO HISTORY YET</div>';
+      return;
+    }
+
+    list.innerHTML = data.history.map(item => `
+      <div class="history-item" onclick="showHistoryItem(this)" data-description="${escapeAttr(item.description)}">
+        <div class="history-item-header">${escapeHtml(item.header)}</div>
+        <div class="history-item-text">${escapeHtml(item.description)}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('History error:', e);
+  }
+}
+
+function showHistoryItem(el) {
+  const desc = el.dataset.description;
+  document.getElementById('resultPlaceholder').style.display = 'none';
+  document.getElementById('resultContent').style.display = 'block';
+  document.getElementById('resultTimestamp').textContent = '▸ FROM HISTORY';
+  document.getElementById('resultText').textContent = desc;
+  document.getElementById('resultText').className = 'result-text has-content';
+  document.getElementById('resultBox').className = 'result-box active';
+}
+
+// --- UTILITIES ---
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 's' || e.key === 'S') captureFrame();
+  if (e.key === 'y' || e.key === 'Y') analyzeCapture();
+  if (e.key === 'n' || e.key === 'N') saveCapture();
+  if (e.key === 'c' || e.key === 'C') retake();
+});
+
+// Start
+init();
+</script>
+</body>
+</html>
